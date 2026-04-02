@@ -1,0 +1,179 @@
+---
+title: "Analiza Sprzedaży Sklepu"
+author: "Jakub Zamczyk"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    code_folding: hide
+  pdf_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(knitr)
+library(lubridate) 
+library(plotly)
+
+sales_data <- read_csv("retail_sales_dataset.csv", show_col_types = FALSE)
+```
+
+## 1. Wstęp i podsumowanie ogólne
+
+Celem niniejszego raportu jest analiza danych sprzedażowych sklepu internetowego. Na początku przyjrzyjmy się ogólnym wynikom w podziale na główne kategorie produktów oraz płeć klientów, co pozwoli nam zidentyfikować najważniejsze segmenty biznesowe.
+
+### Sprzedaż według kategorii produktów
+
+```{r podsumowanie-kategoria}
+#przygotowanie tabeli  poprzez grupowanie kategorii
+sales_by_category <- sales_data %>% 
+  group_by(`Product Category`) %>%
+  summarise(
+    Calkowita_sprzedaz = sum(`Total Amount`),
+    Srednia_sprzedaz = round(mean(`Total Amount`), 2),
+    Liczba_zamowien = n()
+  ) %>%
+  arrange(desc(Calkowita_sprzedaz))
+```
+
+```{r tabela-kategoria, echo=FALSE}
+kable(sales_by_category, col.names = c("Kategoria", "Całkowita Sprzedaż (USD)", "Średnia Kwota Zamówienia (USD)", "Liczba Zamówień"))
+```
+
+### Sprzedaż według płci klientów
+
+```{r podsumowanie-plci}
+sales_by_gender <- sales_data %>% 
+  group_by(Gender) %>%
+  summarise(
+    Calkowita_sprzedaz = sum(`Total Amount`),
+    Srednia_sprzedaz = round(mean(`Total Amount`), 2),
+    Liczba_zamowien = n()
+  ) %>%
+  arrange(desc(Calkowita_sprzedaz))
+```
+
+```{r tabela-plec, echo=FALSE}
+kable(sales_by_gender, col.names = c("Płeć", "Całkowita Sprzedaż (USD)", "Średnia Kwota Zamówienia (USD)", "Liczba Zamówień"))
+```
+
+---
+
+## 2. Płeć a Kategoria Produktu
+
+Wiedząc już, jak wyglądają ogólne trendy, możemy połączyć oba te wymiary. Przekształcimy dane (korzystając z formatu szerokiego - `pivot_wider`), aby bezpośrednio zestawić ze sobą sumę wydatków kobiet i mężczyzn w poszczególnych działach.
+
+```{r tabela-roznic}
+tabela_roznic <- sales_data %>%
+  group_by(`Product Category`, Gender) %>%
+  summarise(
+    Calkowita_sprzedaz = sum(`Total Amount`),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = Gender,
+    values_from = Calkowita_sprzedaz
+  ) %>%
+  mutate(
+    Roznica_F_minus_M = Female - Male
+  )
+```
+
+```{r tabela-roznica-wyswietlenie, echo=FALSE}
+kable(tabela_roznic, col.names = c("Kategoria Produktu", "Kobiety (USD)", "Mężczyźni (USD)", "Różnica (Kobiety - Mężczyźni)"))
+```
+
+### Wizualizacja różnic
+
+```{r wykres-kategorie-plec, fig.width=8, fig.height=5}
+sales_by_category_gender <- sales_data %>% 
+  group_by(`Product Category`, Gender) %>% 
+  summarise(Calkowita_sprzedaz = sum(`Total Amount`), .groups = "drop") 
+
+wykres1<-ggplot(sales_by_category_gender, aes(x = `Product Category`, y = Calkowita_sprzedaz, fill = Gender)) +
+  geom_col(position = "dodge", color = "black", linewidth = 0.2) +
+  theme_minimal() + 
+  labs(
+    title = "Całkowita sprzedaż w kategoriach z podziałem na płeć",
+    subtitle = "Porównanie wydatków kobiet i mężczyzn",
+    x = "Kategoria produktu",
+    y = "Łączna kwota wydatków (USD)",
+    fill = "Płeć"
+  ) +
+  scale_fill_manual(values = c("Female" = "darkolivegreen1", "Male" = "cornflowerblue"))
+  ggplotly(wykres1)
+```
+
+### **Wniosek biznesowy nr 1:**
+Kobiety wyraźnie dominują w zakupach produktów z kategorii **Beauty** oraz **Clothing**. Sugeruje to, że kampanie promocyjne w tych obszarach powinny być precyzyjniej kierowane do grupy żeńskiej. Z kolei mężczyźni generują większe przychody w dziale **Electronics**. Warto rozważyć akcje promocyjne skierowane właśnie do nich.
+
+---
+
+## 3. Analiza trendów w czasie
+
+Ważnym aspektem każdego biznesu detalicznego jest sezonowość. Sprawdźmy, jak kształtowała się łączna sprzedaż w poszczególnych miesiącach badanego okresu. Użyjemy do tego biblioteki `lubridate`.
+
+```{r trend-czasowy, fig.width=9, fig.height=4.5}
+sales_by_month <- sales_data %>%
+  mutate(Miesiac = month(Date, label = TRUE, abbr = FALSE)) %>%
+  group_by(Miesiac) %>%
+  summarise(Calkowita_sprzedaz = sum(`Total Amount`), .groups = "drop")
+
+wykres2<-ggplot(sales_by_month, aes(x = Miesiac, y = Calkowita_sprzedaz, group = 1)) +
+  geom_line(color = "black", linewidth = 1.2) + 
+  geom_point(color = "red", size = 3) +       
+  theme_minimal() +
+  labs(
+    title = "Miesięczne trendy sprzedaży",
+    subtitle = "Zmienność przychodów sklepu na przestrzeni roku",
+    x = "Miesiąc",
+    y = "Całkowita sprzedaż (USD)"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  ggplotly(wykres2)
+```
+
+### **Wniosek biznesowy nr 2:**
+Analiza trendu miesięcznego pozwala zidentyfikować piki sprzedażowe oraz okresy spowolnienia. W miesiącach o historycznie najniższej sprzedaży warto zaplanować dodatkowe akcje wyprzedażowe, aby stymulować popyt.
+
+---
+
+## 4. Segmentacja klientów według wieku
+
+Klienci w różnym wieku mają różne nawyki zakupowe. Zamiast analizować każdy pojedynczy rocznik, przypisaliśmy klientów do czterech głównych przedziałów wiekowych za pomocą funkcji `case_when()`.
+
+```{r segmentacja-wiek, fig.width=8, fig.height=5}
+sales_by_age <- sales_data %>%
+  mutate(Grupa_wiekowa = case_when(
+    Age < 25 ~ "1. Poniżej 25 lat",
+    Age >= 25 & Age <= 40 ~ "2. Dorośli (25-40 lat)",
+    Age > 40 & Age <= 55 ~ "3. Średni wiek (41-55 lat)",
+    Age > 55 ~ "4. Powyżej 55 lat"
+  )) %>%
+  group_by(Grupa_wiekowa) %>%
+  summarise(
+    Calkowita_sprzedaz = sum(`Total Amount`),
+    .groups = "drop"
+  )
+
+wykres3<-ggplot(sales_by_age, aes(x = Grupa_wiekowa, y = Calkowita_sprzedaz, fill = Grupa_wiekowa)) +
+  geom_col(color = "black", linewidth = 0.2) +
+  theme_minimal() +
+  labs(
+    title = "Przychody według grup wiekowych",
+    subtitle = "Która generacja zostawia w sklepie najwięcej pieniędzy?",
+    x = "Grupa wiekowa",
+    y = "Całkowita sprzedaż (USD)"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "none")
+ggplotly(wykres3)
+```
+
+###  **Wniosek biznesowy nr 3:**
+Podział na grupy jasno wskazuje, która generacja stanowi naszą grupę docelową. Optymalizacja budżetu reklamowego powinna uwzględniać platformy społecznościowe (np. Facebook lub Instagram) najchętniej używane przez najbardziej dochodową grupę wiekową.
