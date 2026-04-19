@@ -16,4 +16,4 @@ Wykorzystałem w nim pakiety:
 3. **Analiza Grup Wiekowych:** Od 25 do 40 lat to przedział wieku u osób, które generują najwyższe przychody.
 4. **Sezonowość:** Dominującymi miesiącami sprzedaży były luty, maj, październik oraz grudzień, spośród których najbardziej dochodowym był maj.
 
-"Projekt zrealizowany z wykorzystaniem Gemini jako wsparcia programistycznego. Sztuczna inteligencja pomogła mi w szybszym generowaniu składni oraz zrozumieniu dobrych praktyk z dokumentacji, podczas gdy ja skupiłem się na logice analizy danych, architekturze rozwiązania i wyciąganiu wniosków biznesowych."
+Projekt zrealizowany z wykorzystaniem Gemini jako wsparcia programistycznego. Sztuczna inteligencja pomogła mi w szybszym generowaniu składni oraz zrozumieniu dobrych praktyk z dokumentacji, podczas gdy ja skupiłem się na logice analizy danych, architekturze rozwiązania i wyciąganiu wniosków biznesowych.
